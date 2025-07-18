@@ -20,6 +20,7 @@ int tetrominoe_idx;             //used to choose one of the 7 tetrominoes
 int cur_tetrominoe_x_idx;       //tracks column position of current tetrominoe
 int cur_tetrominoe_y_idx;       //tracks row position of current tetrominoe
 int orientation;                //tracks orientation of the tetromenoe
+int score = 0;              
 
 //function declarations
 int poll_input(char* input);
@@ -27,6 +28,7 @@ void place_tetrominoe();
 void clear_full_lines();
 void draw_game();
 void apply_gravity();
+void is_game_over();
 void rotate_clockwise();
 void move_left();
 void move_right();
@@ -102,11 +104,15 @@ int main() {
             if (valid_position(cur_tetrominoe_x_idx, cur_tetrominoe_y_idx + 1, orientation)) {
                 apply_gravity();
 
-            //if floored, clear any full lines and add a new tetrominoe
+            //if floored, clear any full lines 
+            //then add a new tetrominoe 
+            //then check for game_over
             } else {
 
                 clear_full_lines();
+                is_game_over();
                 place_tetrominoe();
+                
             }
 
             //update start time to current time and update screen
@@ -145,6 +151,8 @@ int main() {
 
         Sleep(20);
     }
+
+    printf("\nGAME OVER\n");
     return 0;
 }
 
@@ -152,6 +160,9 @@ void draw_game() {
 
     //clear screen and reset cursor
     printf("\033[2J\033[H");
+
+    //display score
+    printf("SCORE: %d\n\n", score);
 
     //draw current game array
     for (int i=0 ; i<HEIGHT ; i++) {
@@ -221,6 +232,10 @@ void clear_full_lines () {
         }
 
         if (full_line) {
+
+            //increment score
+            score += 100;
+
             //shift all rows above cleared line (except for top row) down by one
             for(int row=i ; row>0 ; row--) {
                 for(int j=0 ; j<WIDTH ; j++) {
@@ -342,4 +357,17 @@ bool valid_position(int x_idx, int y_idx, int ori) {
     //redraw the OG tetrominoe and return
     draw_tetrominoe();
     return true;
+}
+
+void is_game_over() {
+
+    bool top_line_reached = false;
+    
+    for (int i=0 ; i<WIDTH ; i++) {
+        if (game_array[0][i] == 1) {
+            top_line_reached = true;
+        }
+    }
+
+    if (top_line_reached) game_over = true;
 }
