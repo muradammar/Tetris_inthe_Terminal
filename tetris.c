@@ -17,7 +17,6 @@
 char game_array[HEIGHT][WIDTH] = {{0}};
 bool game_over = false;
 int tetrominoe_idx;             //used to choose one of the 7 tetrominoes
-double time_since_update;       //used to apply gravity in real time
 int cur_tetrominoe_x_idx;       //tracks column position of current tetrominoe
 int cur_tetrominoe_y_idx;       //tracks row position of current tetrominoe
 int orientation;                //tracks orientation of the tetromenoe
@@ -25,14 +24,14 @@ int orientation;                //tracks orientation of the tetromenoe
 //function declarations
 int poll_input(char* input);
 void place_tetrominoe();
-int line_cleared();
+void clear_full_lines();
 void draw_game();
 void apply_gravity();
-void rotate_left();
-void rotate_right();
+void rotate_clockwise();
+void move_left();
+void move_right();
 void draw_tetrominoe();
 bool valid_position(int x_idx, int y_idx, int ori); //pass vars so position can be tested before changing position
-void temporary_draw(int x_idx, int y_idx, int ori); //helper function for testing if position is valid
 
 //[orientation][tetromenoe_type][actual_tetromenoe_shape]
 char tetrominoes[4][7][T_WIDTH * T_HEIGHT] = 
@@ -79,8 +78,9 @@ char tetrominoes[4][7][T_WIDTH * T_HEIGHT] =
     },
 };
 
-
 int main() {
+
+    double time_since_update; //used to apply gravity in real time
 
     clock_t start_sec, end_sec;
     start_sec = clock(); //start timing
@@ -96,53 +96,55 @@ int main() {
         time_since_update = ((double) (end_sec - start_sec)) / CLOCKS_PER_SEC;
 
 
-        if (time_since_update > 1) {
-            //apply_gravity
-
+        if (time_since_update > 0.75) {
+            
+            //apply gravity 
             if (valid_position(cur_tetrominoe_x_idx, cur_tetrominoe_y_idx + 1, orientation)) {
                 apply_gravity();
-            }
 
-            else {
+            //if floored, clear any full lines and add a new tetrominoe
+            } else {
+
+                clear_full_lines();
                 place_tetrominoe();
             }
 
-            
-
-            //update start time to current time
+            //update start time to current time and update screen
             start_sec = clock();
-
             draw_tetrominoe();
             draw_game();
-            // printf("%d\n", cur_tetrominoe_y_idx);
-            // Sleep(500);
         }
 
-
-        //place_tetrominoe();
-        
+        //------INPUT HANDLING--------------
         char input;
         int key_read;
         key_read = poll_input(&input);
 
-        if (input == 'a') {
-            rotate_left();
+        //read key and make sure position is valid
+        if (input == 'w' && valid_position(cur_tetrominoe_x_idx, cur_tetrominoe_y_idx, orientation + 1)) {
+            rotate_clockwise();
+            draw_tetrominoe();
             draw_game();
-            input = 'n';
-        }
-
-        if (input == 'd') {
-            rotate_right();
+            input = 'l';
+        } else if (input == 'a' && valid_position(cur_tetrominoe_x_idx - 1, cur_tetrominoe_y_idx, orientation)) {
+            move_left();
+            draw_tetrominoe();
             draw_game();
-            input = 'n';
+            input = 'l'; //debounce
+        } else if (input == 'd' && valid_position(cur_tetrominoe_x_idx + 1, cur_tetrominoe_y_idx, orientation)) {
+            move_right();
+            draw_tetrominoe();
+            draw_game();
+            input = 'l'; //debounce
+        } else if (input == 's' && valid_position(cur_tetrominoe_x_idx, cur_tetrominoe_y_idx + 1, orientation)) {
+            apply_gravity();
+            draw_tetrominoe();
+            draw_game();
+            input = 'l'; //debounce
         }
 
         Sleep(20);
-        //printf("\e[1;1H\e[2J"); //clear terminal
-        
-        //system("cls");
     }
-
     return 0;
 }
 
@@ -151,16 +153,14 @@ void draw_game() {
     //clear screen and reset cursor
     printf("\033[2J\033[H");
 
-    //draw new content
+    //draw current game array
     for (int i=0 ; i<HEIGHT ; i++) {
         printf("| ");
         for (int j=0 ; j<WIDTH ; j++) {
 
             if (game_array[i][j] == 0) {
                 printf(". ");
-            }
-
-            else {
+            } else {
                 printf("# ");
             }
         }
@@ -176,18 +176,6 @@ void place_tetrominoe() {
         cur_tetrominoe_x_idx = 3;
         cur_tetrominoe_y_idx = 0;
         orientation = 0;
-
-
-    //     //TEMPORARY BLOCK
-    //     for (int i=0 ; i<4 ; i++) {
-    //         for (int j=3; j<WIDTH-3 ; j++) {
-    //         // printf("%d", tetrominoes[tetrominoe_idx][(i*4) + ((j - 3))]);
-    //         // Sleep(1000);
-
-    //         game_array[i][j] = 0;
-            
-    //     }
-    // }
 
     tetrominoe_idx = rand() % 7;
 
@@ -209,17 +197,42 @@ int poll_input(char* input) {
     if(_kbhit()) {
         *input = _getch();
         return 1;
-    }
-
-    else {
+    } else {
         //handle no input
         return 0;
     }
 }
 
-//return the row index of a cleared line else return -1
-int line_cleared () {
+//clear any filled lines and update the game array
+void clear_full_lines () {
 
+    bool full_line; 
+    
+    //start checking lines from the bottom
+    for (int i=HEIGHT-1 ; i>=0 ; i--) {
+
+        full_line = true; //assume true until proven otherwise
+        for (int j=0 ; j<WIDTH ; j++) {
+            
+            if(game_array[i][j] == 0) {
+                full_line = false;
+                break; //stop checking line
+            }
+        }
+
+        if (full_line) {
+            //shift all rows above cleared line (except for top row) down by one
+            for(int row=i ; row>0 ; row--) {
+                for(int j=0 ; j<WIDTH ; j++) {
+                    game_array[i][j] = game_array[i - 1][j];
+                }
+            }
+            //empty the top row
+            for (int i=0 ; i<WIDTH; i++) {
+                game_array[0][i] = 0;
+            }
+        }
+    }
 }
 
 void apply_gravity() {
@@ -227,7 +240,10 @@ void apply_gravity() {
     //erase previous position of tetrominoe
     for (int i=cur_tetrominoe_y_idx ; i<cur_tetrominoe_y_idx+4 ; i++) {
         for (int j=cur_tetrominoe_x_idx; j<cur_tetrominoe_x_idx+4 ; j++) {
-            game_array[i][j] = 0;
+
+            if(tetrominoes[orientation][tetrominoe_idx][ ((i - cur_tetrominoe_y_idx) * 4) + (j - cur_tetrominoe_x_idx) ] == 1) {
+                game_array[i][j] = 0;
+            }    
         }
     }
 
@@ -235,36 +251,51 @@ void apply_gravity() {
     cur_tetrominoe_y_idx += 1;
 }
 
-void rotate_left() {
+void rotate_clockwise() {
 
     //erase previous position of tetrominoe
     for (int i=cur_tetrominoe_y_idx ; i<cur_tetrominoe_y_idx+4 ; i++) {
         for (int j=cur_tetrominoe_x_idx; j<cur_tetrominoe_x_idx+4 ; j++) {
-            game_array[i][j] = 0;
+            if(tetrominoes[orientation][tetrominoe_idx][ ((i - cur_tetrominoe_y_idx) * 4) + (j - cur_tetrominoe_x_idx) ] == 1) {
+                game_array[i][j] = 0;
+            }     
         }
     }
-
-    orientation = (orientation + 3) % 4;
+    orientation = (orientation + 1) % 4;
 }
 
-void rotate_right() {
-
+void move_left() {
     //erase previous position of tetrominoe
     for (int i=cur_tetrominoe_y_idx ; i<cur_tetrominoe_y_idx+4 ; i++) {
         for (int j=cur_tetrominoe_x_idx; j<cur_tetrominoe_x_idx+4 ; j++) {
-            game_array[i][j] = 0;
+
+            if(tetrominoes[orientation][tetrominoe_idx][ ((i - cur_tetrominoe_y_idx) * 4) + (j - cur_tetrominoe_x_idx) ] == 1) {
+                game_array[i][j] = 0;
+            }    
         }
     }
 
-    orientation = (orientation + 1) % 4;
+    cur_tetrominoe_x_idx -= 1;
+}
+
+void move_right() {
+    //erase previous position of tetrominoe
+    for (int i=cur_tetrominoe_y_idx ; i<cur_tetrominoe_y_idx+4 ; i++) {
+        for (int j=cur_tetrominoe_x_idx; j<cur_tetrominoe_x_idx+4 ; j++) {
+
+            if(tetrominoes[orientation][tetrominoe_idx][ ((i - cur_tetrominoe_y_idx) * 4) + (j - cur_tetrominoe_x_idx) ] == 1) {
+                game_array[i][j] = 0;
+            }    
+        }
+    }
+
+    cur_tetrominoe_x_idx += 1;
 }
 
 void draw_tetrominoe() {
 
     for (int i=cur_tetrominoe_y_idx ; i<cur_tetrominoe_y_idx+4 ; i++) {
         for (int j=cur_tetrominoe_x_idx; j<cur_tetrominoe_x_idx+4 ; j++) {
-            // printf("%d", tetrominoes[tetrominoe_idx][(i*4) + ((j - 3))]);
-            // Sleep(1000);
             if (tetrominoes[orientation][tetrominoe_idx][ ((i-cur_tetrominoe_y_idx) * 4) + ((j-cur_tetrominoe_x_idx)) ] == 1) {
                 game_array[i][j] = 1;
             }
@@ -272,7 +303,7 @@ void draw_tetrominoe() {
     }
 }
 
-
+//erase tetrominoe -> check new position -> redraw tetrominoe and return bool
 bool valid_position(int x_idx, int y_idx, int ori) {
 
     //temporarily erase previous position of tetrominoe
@@ -282,7 +313,6 @@ bool valid_position(int x_idx, int y_idx, int ori) {
             if(tetrominoes[orientation][tetrominoe_idx][ ((i - cur_tetrominoe_y_idx) * 4) + (j - cur_tetrominoe_x_idx) ] == 1) {
                 game_array[i][j] = 0;
             }
-            
         }
     }
 
@@ -295,107 +325,21 @@ bool valid_position(int x_idx, int y_idx, int ori) {
                 
                 //check for out of bounds
                 if(j < 0 || j >= WIDTH || i >= HEIGHT) {
+                    //redraw the OG tetrominoe and return
+                    draw_tetrominoe();
                     return false;
                 }
 
                 //check for collision with existing blocks
                 if(game_array[i][j] == 1) {
+                    //redraw the OG tetrominoe and return
+                    draw_tetrominoe();
                     return false;
                 }
-
             }            
-            
         }
     }
-
-    return true;
-
-    //redraw the OG tetrominoe
+    //redraw the OG tetrominoe and return
     draw_tetrominoe();
-
+    return true;
 }
-
-//returns true if given tetrominoe position does not collide with walls or floor
-//else returns false
-// bool valid_position(int x_idx, int y_idx, int ori) {
-
-//     //temporarily draw given position
-//     temporary_draw(x_idx, y_idx, ori);
-
-//     //check for valid positions
-//     for (int i=x_idx ; i<x_idx+4 ; i++) {
-//         for (int j=y_idx ; j<y_idx+4 ; j++) {
-
-//             //only check cells that are "filled"
-//             if (tetrominoes[ori][tetrominoe_idx][ ((i-y_idx) * 4) + (j-x_idx) ] == 1) {
-
-//                 //check x position for out of bounds
-//                 if (i < 0 || i >= WIDTH) {
-
-//                     printf("1 ");
-
-//                     //restore position
-//                     temporary_draw(cur_tetrominoe_x_idx, cur_tetrominoe_y_idx, orientation);
-//                     return false;
-                    
-//                 }
-
-//                 //check y position for touching floor
-//                 if (j >= HEIGHT) {
-
-//                     printf("2 ");
-
-//                     //restore position
-//                     temporary_draw(cur_tetrominoe_x_idx, cur_tetrominoe_y_idx, orientation);
-//                     return false;
-                    
-//                 }
-
-//                 //check y position for touching other blocks
-//                 if (game_array[i][j] == 1) {
-
-//                     printf("3 ");
-
-//                     //restore position
-//                     temporary_draw(cur_tetrominoe_x_idx, cur_tetrominoe_y_idx, orientation);
-//                     return false;
-                    
-//                 }
-//             }
-            
-//         }
-//     }
-
-//     //restore position
-//     for (int i=cur_tetrominoe_y_idx ; i<cur_tetrominoe_y_idx+4 ; i++) {
-//         for (int j=cur_tetrominoe_x_idx; j<cur_tetrominoe_x_idx+4 ; j++) {
-//             game_array[i][j] = 0;
-//         }
-//     }
-
-//     temporary_draw(cur_tetrominoe_x_idx, cur_tetrominoe_y_idx, orientation);
-//     return true;
-// }
-
-// void temporary_draw(int x_idx, int y_idx, int ori) {
-
-//     //temporarily draw given position
-//     //erase previous position of tetrominoe
-//     for (int i=y_idx ; i<y_idx+4 ; i++) {
-//         for (int j=x_idx; j<x_idx+4 ; j++) {
-//             game_array[i][j] = 0;
-//         }
-//     }
-
-//     //draw new position
-//     for (int i=y_idx ; i<y_idx+4 ; i++) {
-//         for (int j=x_idx; j<x_idx+4 ; j++) {
-//             // printf("%d", tetrominoes[tetrominoe_idx][(i*4) + ((j - 3))]);
-//             // Sleep(1000);
-//             if (tetrominoes[ori][tetrominoe_idx][ ((i-y_idx) * 4) + ((j-x_idx)) ] == 1) {
-//                 game_array[i][j] = 1;
-//             }
-//         }
-//     }
-
-// }
