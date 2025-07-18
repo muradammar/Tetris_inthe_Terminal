@@ -170,7 +170,7 @@ void draw_game() {
         for (int j=0 ; j<WIDTH ; j++) {
 
             if (game_array[i][j] == 0) {
-                printf(". ");
+                printf("  ");
             } else {
                 printf("# ");
             }
