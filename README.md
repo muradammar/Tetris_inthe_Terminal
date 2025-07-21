@@ -6,4 +6,4 @@ All you need is a C compiler and a terminal. The current version is made for the
 
 ![Description](https://github.com/muradammar/Tetris_inthe_Terminal/blob/main/assets/tetrisgif1%20(online-video-cutter.com).gif?raw=true)
 
-I am working on an animation for the line clearing. 
+I am working on an animation for the line clearing. The small line-clearing bug in the GIF above has been fixed.
