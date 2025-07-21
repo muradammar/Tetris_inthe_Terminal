@@ -224,14 +224,15 @@ int poll_input(char* input) {
 void clear_full_lines () {
 
     bool full_line; 
+    int row = HEIGHT - 1;
     
     //start checking lines from the bottom
-    for (int i=HEIGHT-1 ; i>=0 ; i--) {
+    while (row > 0) {
 
         full_line = true; //assume true until proven otherwise
         for (int j=0 ; j<WIDTH ; j++) {
             
-            if(game_array[i][j] == 0) {
+            if(game_array[row][j] == 0) {
                 full_line = false;
                 break; //stop checking line
             }
@@ -243,7 +244,7 @@ void clear_full_lines () {
             score += 100;
 
             //shift all rows above cleared line (except for top row) down by one
-            for(int row=i ; row>0 ; row--) {
+            for(int i=row ; i>0 ; i--) {
                 for(int j=0 ; j<WIDTH ; j++) {
                     game_array[i][j] = game_array[i - 1][j];
                 }
@@ -252,6 +253,9 @@ void clear_full_lines () {
             for (int i=0 ; i<WIDTH; i++) {
                 game_array[0][i] = 0;
             }
+        }
+        else {
+            row--; //only increment row counter if line was not full
         }
     }
 }
