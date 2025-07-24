@@ -35,6 +35,7 @@ void move_right();
 void draw_tetrominoe();
 void clear_screen();
 void hide_cursor();
+void line_clearing_animation(int row);
 bool valid_position(int x_idx, int y_idx, int ori); //pass vars so position can be tested before changing position
 
 //[orientation][tetromenoe_type][actual_tetromenoe_shape]
@@ -86,6 +87,9 @@ int main() {
 
     //hide the cursor
     hide_cursor();
+
+    //random seed
+    srand(time(NULL));
 
     double time_since_update; //used to apply gravity in real time
 
@@ -243,6 +247,9 @@ void clear_full_lines () {
             //increment score
             score += 100;
 
+            //show user which line is being cleared
+            line_clearing_animation(row);
+
             //shift all rows above cleared line (except for top row) down by one
             for(int i=row ; i>0 ; i--) {
                 for(int j=0 ; j<WIDTH ; j++) {
@@ -394,4 +401,23 @@ void hide_cursor() {
     GetConsoleCursorInfo(hConsole, &cursorInfo);  // Get current cursor info
     cursorInfo.bVisible = FALSE;                  // Set visibility to false
     SetConsoleCursorInfo(hConsole, &cursorInfo);  // Apply the change
+}
+
+void line_clearing_animation(int row) {
+
+    for (int k=0 ; k<2 ; k++) {
+        for (int i=0 ; i<WIDTH ; i++) {
+            game_array[row][i] = 0;
+        }
+
+        draw_game();
+        Sleep(200);
+
+        for (int i=0 ; i<WIDTH ; i++) {
+            game_array[row][i] = 1;
+        }
+
+        draw_game();
+        Sleep(200);
+    } 
 }
