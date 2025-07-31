@@ -91,10 +91,12 @@ int main() {
     //random seed
     srand(time(NULL));
 
-    double time_since_update; //used to apply gravity in real time
+    double time_since_update, time_since_start; //used to apply gravity in real time
+    double update_period = 0.75; //shortens as game goes on for difficulty
 
-    clock_t start_sec, end_sec;
-    start_sec = clock(); //start timing
+    clock_t start_sec, end_sec, game_start_sec;
+    start_sec = clock(); //used for game updates
+    game_start_sec = clock(); //used for increasing difficulty overtime
 
     place_tetrominoe();
     draw_game();
@@ -105,9 +107,10 @@ int main() {
         //update elapsed time
         end_sec = clock();
         time_since_update = ((double) (end_sec - start_sec)) / CLOCKS_PER_SEC;
+        time_since_start = ((double) (end_sec - game_start_sec)) / CLOCKS_PER_SEC;
 
 
-        if (time_since_update > 0.75) {
+        if (time_since_update > update_period) {
             
             //apply gravity 
             if (valid_position(cur_tetrominoe_x_idx, cur_tetrominoe_y_idx + 1, orientation)) {
@@ -130,6 +133,16 @@ int main() {
             draw_game();
         }
 
+        //check if its time to increase the difficulty
+        if (time_since_start > 60) {
+            
+            //speed caps at double the original
+            update_period = (update_period > 0.375) ? update_period - 0.05 : update_period;
+
+            game_start_sec = clock();
+        }
+        
+
         //------INPUT HANDLING--------------
         char input;
         int key_read;
@@ -140,7 +153,7 @@ int main() {
             rotate_clockwise();
             draw_tetrominoe();
             draw_game();
-            input = 'l';
+            input = 'l'; //debounce
         } else if (input == 'a' && valid_position(cur_tetrominoe_x_idx - 1, cur_tetrominoe_y_idx, orientation)) {
             move_left();
             draw_tetrominoe();
@@ -403,6 +416,7 @@ void hide_cursor() {
     SetConsoleCursorInfo(hConsole, &cursorInfo);  // Apply the change
 }
 
+//creates a flashing line animation
 void line_clearing_animation(int row) {
 
     for (int k=0 ; k<2 ; k++) {
